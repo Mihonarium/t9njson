@@ -412,12 +412,11 @@ func UpdateT9nJson(filePath string) error {
 		return err
 	}
 	ext := filepath.Ext(filePath)
-	_, path := filepath.Split(filePath)
-	filePath = strings.TrimSuffix(filePath, "."+ext)
-	path = strings.TrimSuffix(path, "."+ext)
+	dir, path := filepath.Split(filePath)
+	path = strings.TrimSuffix(path, ext)
 
 	var prevDoc map[string]string
-	f, err := readFile(filePath + ".json")
+	f, err := readFile(dir + string(os.PathSeparator) + path + ".json")
 	if err != nil {
 		prevDoc = nil
 	} else {
@@ -428,7 +427,7 @@ func UpdateT9nJson(filePath string) error {
 	}
 
 	var usedKeys []string
-	f, err = readFile(filePath + ".usedKeys.json")
+	f, err = readFile(dir + string(os.PathSeparator) + path + ".usedKeys.json")
 	if err != nil {
 		usedKeys = nil
 	} else {
@@ -442,14 +441,14 @@ func UpdateT9nJson(filePath string) error {
 	if err != nil {
 		return err
 	}
-	saveToFile(filePath+".json.old", f)
-	saveToFile(filePath+".json", j)
+	saveToFile(dir+string(os.PathSeparator)+path+".json.old", f)
+	saveToFile(dir+string(os.PathSeparator)+path+".json", j)
 	// save used keys to json
 	j, err = json.Marshal(doc.UsedKeys)
 	if err != nil {
 		return err
 	}
-	saveToFile(filePath+".usedKeys.json", j)
+	saveToFile(dir+string(os.PathSeparator)+path+".usedKeys.json", j)
 	return nil
 }
 
