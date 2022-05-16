@@ -445,7 +445,7 @@ func UpdateT9nJson(filePath string) error {
 	saveToFile(filePath+".json.old", f)
 	saveToFile(filePath+".json", j)
 	// save used keys to json
-	j, err = json.Marshal(usedKeys)
+	j, err = json.Marshal(doc.UsedKeys)
 	if err != nil {
 		return err
 	}
