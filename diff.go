@@ -427,11 +427,11 @@ func UpdateT9nJson(filePath string) error {
 	}
 
 	var usedKeys []string
-	f, err = readFile(dir + string(os.PathSeparator) + path + ".usedKeys.json")
+	usedKeysF, err = readFile(dir + string(os.PathSeparator) + path + ".usedKeys.json")
 	if err != nil {
 		usedKeys = nil
 	} else {
-		err = json.Unmarshal(f, &usedKeys)
+		err = json.Unmarshal(usedKeysF, &usedKeys)
 		if err != nil {
 			return err
 		}
