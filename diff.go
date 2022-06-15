@@ -194,13 +194,20 @@ type Doc struct {
 
 // WithPreservedKeysAndOrder returns a new Doc preserving the order of the keys and the keys of paragraphs that didn't change much
 func WithPreservedKeysAndOrder(newText, path string, docPrevVersion map[string]string, usedKeys []string) *Doc {
+	keysPrefix := path
+	if len(docPrevVersion) != 0 {
+		for k := range docPrevVersion {
+			keysPrefix = strings.Split(k, ":")[0]
+			break
+		}
+	}
 	if docPrevVersion == nil || (len(docPrevVersion) == 0 && len(usedKeys) == 0) {
-		docNew := TextToMap(newText, path)
+		docNew := TextToMap(newText, keysPrefix)
 		for k := range docNew {
 			usedKeys = append(usedKeys, k)
 		}
 		sort.Strings(usedKeys)
-		return &Doc{TextToMap(newText, path), usedKeys}
+		return &Doc{TextToMap(newText, keysPrefix), usedKeys}
 	}
 	if usedKeys == nil {
 		usedKeys = make([]string, 0, len(docPrevVersion))
@@ -403,7 +410,7 @@ func WithPreservedKeysAndOrder(newText, path string, docPrevVersion map[string]s
 		docNew[l.Key] = l.NewLine
 	}
 	sort.Strings(usedKeys)
-	return &Doc{TextToMap(newText, path), usedKeys}
+	return &Doc{TextToMap(newText, keysPrefix), usedKeys}
 }
 
 func UpdateT9nJson(filePath string) error {
