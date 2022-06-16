@@ -221,9 +221,42 @@ func WithPreservedKeysAndOrder(newText, path string, docPrevVersion map[string]s
 	diff := d.DiffBisect(prevText, newText, time.Now().Add(time.Minute))
 	// fmt.Println(d.DiffPrettyText(diff))
 
-	// add two maps with keys corresponding to the start line of the paragraph=
+	// add two maps with keys corresponding to the start line of the paragraph
 	docPrevKeys := getKeys(docPrevVersion)
-	saveToFile("docFirstLines.md", []byte(prevText))
+	// saveToFile("docFirstLines.md", []byte(prevText))
+
+
+	diffUnified := []diffmatchpatch.Diff{}
+	cf := 0
+	for j, d := range append(diff, diffmatchpatch.Diff{Type: 3, Text: ""}) {
+		if diff[cf].Type != d.Type {
+			text := ""
+			for _, d_ := range diff[cf:j] {
+				text += strings.ReplaceAll(d_.Text, "\n\r", "\n")
+			}
+			diffUnified = append(diffUnified, diffmatchpatch.Diff{Type: diff[cf].Type, Text: text})
+			cf = j
+		}
+	}
+	diff = diffUnified
+
+	// When lines (but not paragraphs) are added, the diff can show the paragraph ending with a single \n at the end,
+	// the insertion with a single \n at the end, and leave a single \n at the beginning of the next paragraph.
+	// We need to move the \n down the road: from the end of the paragraph to the beginning of the insertion, from the end of the insertion
+	// to the beginning of the next paragraph.
+
+	for i, d := range diff {
+		if i < 2 {
+			continue
+		}
+		if d.Type == diffmatchpatch.DiffEqual && diff[i-1].Type == diffmatchpatch.DiffInsert && diff[i-2].Type == diffmatchpatch.DiffEqual {
+			if strings.HasPrefix(diff[i].Text, "\n") && strings.HasSuffix(diff[i-1].Text, "\n") && strings.HasSuffix(diff[i-2].Text, "\n") {
+				diff[i].Text = "\n" + diff[i].Text
+				diff[i-1].Text = "\n" + strings.TrimSuffix(diff[i-1].Text, "\n")
+				diff[i-2].Text = strings.TrimSuffix(diff[i-2].Text, "\n")
+			}
+		}
+	}
 
 	diffSepByLines := make([]diffmatchpatch.Diff, 0)
 	for j, d := range diff {
@@ -351,6 +384,10 @@ func WithPreservedKeysAndOrder(newText, path string, docPrevVersion map[string]s
 		newLineLen := utf8.RuneCountInString(newLine)
 		if updateDistance < max([]int{oldLineLen, newLineLen})-min([]int{oldLineLen, newLineLen})+max([]int{oldLineLen, newLineLen})/2 ||
 			i == 0 {
+			if strings.TrimSpace(strings.ReplaceAll(docPrevVersion[k], "\n\r", "\n")) == strings.TrimSpace(newLine) {
+				// if the change is caused only by the replacements made here, don't make that change
+				newLine = docPrevVersion[k]
+			}
 			lines = append(lines, diffLine{
 				Key:         k,
 				PreviousKey: previousKey,
@@ -410,7 +447,7 @@ func WithPreservedKeysAndOrder(newText, path string, docPrevVersion map[string]s
 		docNew[l.Key] = l.NewLine
 	}
 	sort.Strings(usedKeys)
-	return &Doc{TextToMap(newText, keysPrefix), usedKeys}
+	return &Doc{docNew, usedKeys}
 }
 
 func UpdateT9nJson(filePath string) error {
@@ -447,6 +484,26 @@ func UpdateT9nJson(filePath string) error {
 	j, err := json.Marshal(doc.Doc)
 	if err != nil {
 		return err
+	}
+	for i, d := range prevDoc {
+		_, exists := doc.Doc[i]
+		if !exists {
+			fmt.Println("Deleted key", i)
+			fmt.Println(d)
+		}
+	}
+	for i, d := range doc.Doc{
+		old, exists := prevDoc[i]
+		if !exists {
+			fmt.Println("New key", i)
+			fmt.Println(d)
+			continue
+		}
+		if old != d {
+			fmt.Println("Changed string", i)
+			fmt.Println("Old:", old)
+			fmt.Println("New:", d)
+		}
 	}
 	saveToFile(dir+string(os.PathSeparator)+path+".json.old", f)
 	saveToFile(dir+string(os.PathSeparator)+path+".json", j)
